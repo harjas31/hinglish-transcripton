@@ -1,1 +1,36 @@
-
+{
+    "builds": [
+        {
+            "src": "api/index.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "api/index.py"
+        }
+    ],
+    "functions": {
+        "api/index.py": {
+            "memory": 1024,
+            "maxDuration": 10,
+            "includeFiles": "**/*"
+        }
+    },
+    "env": {
+        "PYTHONUNBUFFERED": "1"
+    },
+    "regions": ["iad1"],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "s-maxage=3600, stale-while-revalidate=60"
+                }
+            ]
+        }
+    ]
+}
