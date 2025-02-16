@@ -28,7 +28,7 @@ def transcribe_audio(api_key, audio_file):
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                timestamp_granularities=["segment"],
+                timestamp_granularities=["word"],  # Changed to "word"
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
     except Exception as e:
@@ -44,12 +44,14 @@ def transcribe_audio(api_key, audio_file):
 
 def generate_srt(transcription):
     srt_content = ""
-    for i, segment in enumerate(transcription.segments, start=1):
-        start_time = segment.start
-        end_time = segment.end
-        text = segment.text.strip()
+    segment_index = 1
+    for word_info in transcription['words']:
+        start_time = word_info['start']
+        end_time = word_info['end']
+        text = word_info['text'].strip()
         
-        srt_content += f"{i}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+        srt_content += f"{segment_index}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+        segment_index += 1
     
     return srt_content
 
@@ -99,11 +101,9 @@ if api_key:
                     )
                     
                     with st.expander("Debug Information"):
-                        for i, segment in enumerate(transcription.segments, start=1):
-                            st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
-                            if i < len(transcription.segments):
-                                gap = transcription.segments[i].start - segment.end
-                                st.text(f"Gap to next segment: {gap:.2f}")
-                            st.text(f"Text: {segment.text.strip()}\n")
-
+                        for word_info in transcription['words']:
+                            st.text(f"Word: {word_info['text']}, Start = {word_info['start']:.2f}, End = {word_info['end']:.2f}")
+                            gap = word_info['end'] - word_info['start']
+                            st.text(f"Duration = {gap:.2f} seconds")
+                        
 st.markdown("---")
