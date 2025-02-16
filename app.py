@@ -30,7 +30,7 @@ def transcribe_audio(api_key, audio_file):
                 response_format="verbose_json",
                 timestamp_granularities=["word"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
-            )
+            ).model_dump()  # Convert response to dictionary
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
@@ -46,7 +46,6 @@ def generate_srt(transcription_response):
     srt_content = ""
     counter = 1
     
-    # Access segments from the response dictionary
     segments = transcription_response['segments']
     
     for segment in segments:
@@ -107,7 +106,6 @@ if api_key:
                         mime="text/plain"
                     )
                     
-                    # Updated debug information to work with dictionary response
                     with st.expander("Debug Information"):
                         segments = transcription['segments']
                         for i, segment in enumerate(segments, start=1):
