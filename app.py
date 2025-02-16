@@ -3,7 +3,6 @@ import tempfile
 import os
 from openai import OpenAI
 from datetime import timedelta
-import ast
 
 # Constants
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
@@ -15,21 +14,6 @@ def format_time(seconds):
     minutes, seconds = divmod(remainder, 60)
     milliseconds = td.microseconds // 1000
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
-
-def parse_word(word_str):
-    # Extract values from the TranscriptionWord string
-    try:
-        # Convert the string representation to a dictionary-like structure
-        word_str = word_str.replace("TranscriptionWord(", "").replace(")", "")
-        parts = word_str.split(", ")
-        word_data = {}
-        for part in parts:
-            key, value = part.split("=")
-            word_data[key] = float(value) if key in ['start', 'end'] else value.strip("'")
-        return word_data
-    except Exception as e:
-        st.error(f"Error parsing word: {word_str}, Error: {str(e)}")
-        return None
 
 def transcribe_audio(api_key, audio_file):
     client = OpenAI(api_key=api_key)
@@ -66,17 +50,20 @@ def generate_srt(response):
     counter = 1
     
     try:
-        # Process words directly from the words list
-        if hasattr(response, 'words') and response.words:
-            for word_str in response.words:
-                word_data = parse_word(word_str)
-                if word_data:
-                    start_time = word_data['start']
-                    end_time = word_data['end']
-                    text = word_data['word']
+        # Process words directly
+        if hasattr(response, 'words'):
+            for word in response.words:
+                try:
+                    # Access attributes directly from the TranscriptionWord object
+                    start_time = word.start
+                    end_time = word.end
+                    text = word.word
                     
                     srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
                     counter += 1
+                except Exception as e:
+                    st.error(f"Error processing word: {str(e)}")
+                    continue
     except Exception as e:
         st.error(f"Error in generate_srt: {str(e)}")
         return ""
@@ -135,10 +122,8 @@ if api_key:
                                     st.text("Full text:")
                                     st.text(transcription.text)
                                     st.text("\nWord-level information:")
-                                    for word_str in transcription.words:
-                                        word_data = parse_word(word_str)
-                                        if word_data:
-                                            st.text(f"Word: {word_data['word']}, Start: {word_data['start']:.2f}, End: {word_data['end']:.2f}")
+                                    for word in transcription.words:
+                                        st.text(f"Word: {word.word}, Start: {word.start:.2f}, End: {word.end:.2f}")
                                 except Exception as e:
                                     st.error(f"Error in debug info: {str(e)}")
                     except Exception as e:
