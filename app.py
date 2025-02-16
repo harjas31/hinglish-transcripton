@@ -45,7 +45,7 @@ def transcribe_audio(api_key, audio_file):
 def generate_srt(transcription):
     srt_content = ""
     segment_index = 1
-    for word_info in transcription['words']:
+    for word_info in transcription['word']:
         start_time = word_info['start']
         end_time = word_info['end']
         text = word_info['text'].strip()
