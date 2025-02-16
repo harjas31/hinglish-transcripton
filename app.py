@@ -24,14 +24,13 @@ def transcribe_audio(api_key, audio_file):
 
     try:
         with open(temp_audio_file_path, "rb") as audio_file:
-            response = client.audio.transcriptions.create(
+            transcription = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                timestamp_granularities=["word"],
+                timestamp_granularities=["segment"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
-            return response
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
@@ -41,32 +40,16 @@ def transcribe_audio(api_key, audio_file):
     finally:
         os.unlink(temp_audio_file_path)
 
-def generate_srt(response):
-    if not response:
-        st.error("No transcription response received")
-        return ""
-    
+    return transcription
+
+def generate_srt(transcription):
     srt_content = ""
-    counter = 1
-    
-    try:
-        # Process words directly
-        if hasattr(response, 'words'):
-            for word in response.words:
-                try:
-                    # Access attributes directly from the TranscriptionWord object
-                    start_time = word.start
-                    end_time = word.end
-                    text = word.word
-                    
-                    srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
-                    counter += 1
-                except Exception as e:
-                    st.error(f"Error processing word: {str(e)}")
-                    continue
-    except Exception as e:
-        st.error(f"Error in generate_srt: {str(e)}")
-        return ""
+    for i, segment in enumerate(transcription.segments, start=1):
+        start_time = segment.start
+        end_time = segment.end
+        text = segment.text.strip()
+        
+        srt_content += f"{i}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
     
     return srt_content
 
@@ -77,7 +60,6 @@ st.title("🎙️ Audio Transcription to SRT")
 st.markdown("Created with ❤️ by Harjas Singh [Best Intern]")
 st.markdown("""
 This app allows you to transcribe audio files and generate SRT subtitles using OpenAI's API.
-Now with word-level timestamp granularity!
 
 Please note:
 - Your API key and uploaded files are not stored and are only used for the current session.
@@ -102,31 +84,26 @@ if api_key:
                     transcription = transcribe_audio(api_key, uploaded_file)
                 
                 if transcription:
-                    try:
-                        srt_content = generate_srt(transcription)
-                        if srt_content:
-                            st.success("Transcription complete!")
-                            
-                            st.subheader("Generated SRT Content:")
-                            st.text_area("SRT Content", srt_content, height=300)
-                            
-                            st.download_button(
-                                label="Download SRT File",
-                                data=srt_content,
-                                file_name="transcription.srt",
-                                mime="text/plain"
-                            )
-                            
-                            with st.expander("Debug Information"):
-                                try:
-                                    st.text("Full text:")
-                                    st.text(transcription.text)
-                                    st.text("\nWord-level information:")
-                                    for word in transcription.words:
-                                        st.text(f"Word: {word.word}, Start: {word.start:.2f}, End: {word.end:.2f}")
-                                except Exception as e:
-                                    st.error(f"Error in debug info: {str(e)}")
-                    except Exception as e:
-                        st.error(f"Error processing transcription: {str(e)}")
+                    srt_content = generate_srt(transcription)
+                    
+                    st.success("Transcription complete!")
+                    
+                    st.subheader("Generated SRT Content:")
+                    st.text_area("SRT Content", srt_content, height=300)
+                    
+                    st.download_button(
+                        label="Download SRT File",
+                        data=srt_content,
+                        file_name="transcription.srt",
+                        mime="text/plain"
+                    )
+                    
+                    with st.expander("Debug Information"):
+                        for i, segment in enumerate(transcription.segments, start=1):
+                            st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
+                            if i < len(transcription.segments):
+                                gap = transcription.segments[i].start - segment.end
+                                st.text(f"Gap to next segment: {gap:.2f}")
+                            st.text(f"Text: {segment.text.strip()}\n")
 
 st.markdown("---")
