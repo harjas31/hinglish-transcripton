@@ -28,7 +28,7 @@ def transcribe_audio(api_key, audio_file):
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                timestamp_granularities=["segment"],
+                timestamp_granularities=["word", "segment"],  # Added word-level granularity
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
     except Exception as e:
@@ -45,11 +45,23 @@ def transcribe_audio(api_key, audio_file):
 def generate_srt(transcription):
     srt_content = ""
     for i, segment in enumerate(transcription.segments, start=1):
-        start_time = segment.start
-        end_time = segment.end
-        text = segment.text.strip()
-        
-        srt_content += f"{i}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+        # Check if word timestamps are available
+        if hasattr(segment, 'words') and segment.words:
+            # Generate separate SRT entries for each word
+            for word_idx, word in enumerate(segment.words):
+                srt_idx = f"{i}.{word_idx + 1}"
+                start_time = word.start
+                end_time = word.end
+                text = word.word.strip()
+                
+                srt_content += f"{srt_idx}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+        else:
+            # Fallback to segment-level timestamps if word-level not available
+            start_time = segment.start
+            end_time = segment.end
+            text = segment.text.strip()
+            
+            srt_content += f"{i}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
     
     return srt_content
 
@@ -60,6 +72,7 @@ st.title("🎙️ Audio Transcription to SRT")
 st.markdown("Created with ❤️ by Harjas Singh [Best Intern]")
 st.markdown("""
 This app allows you to transcribe audio files and generate SRT subtitles using OpenAI's API.
+Now with word-level timestamp granularity!
 
 Please note:
 - Your API key and uploaded files are not stored and are only used for the current session.
@@ -101,6 +114,10 @@ if api_key:
                     with st.expander("Debug Information"):
                         for i, segment in enumerate(transcription.segments, start=1):
                             st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
+                            if hasattr(segment, 'words'):
+                                st.text("Word-level timestamps:")
+                                for word in segment.words:
+                                    st.text(f"  Word: {word.word.strip()}, Start = {word.start:.2f}, End = {word.end:.2f}")
                             if i < len(transcription.segments):
                                 gap = transcription.segments[i].start - segment.end
                                 st.text(f"Gap to next segment: {gap:.2f}")
