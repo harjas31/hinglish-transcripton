@@ -3,6 +3,7 @@ import tempfile
 import os
 from openai import OpenAI
 from datetime import timedelta
+import json
 
 # Constants
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
@@ -24,13 +25,17 @@ def transcribe_audio(api_key, audio_file):
 
     try:
         with open(temp_audio_file_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
+            response = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["word"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
-            ).model_dump()  # Convert response to dictionary
+            )
+            # Convert response to dict using json
+            transcription = json.loads(str(response))
+            st.write("Debug - API Response:", transcription)  # Debug print
+            return transcription
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
@@ -40,23 +45,35 @@ def transcribe_audio(api_key, audio_file):
     finally:
         os.unlink(temp_audio_file_path)
 
-    return transcription
-
 def generate_srt(transcription_response):
+    if not transcription_response or not isinstance(transcription_response, dict):
+        st.error(f"Invalid transcription response format: {type(transcription_response)}")
+        return ""
+
+    st.write("Debug - Response in generate_srt:", transcription_response)  # Debug print
+    
     srt_content = ""
     counter = 1
     
-    segments = transcription_response['segments']
-    
-    for segment in segments:
-        if 'words' in segment:
-            for word in segment['words']:
-                start_time = word['start']
-                end_time = word['end']
-                text = word['word'].strip()
-                
-                srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
-                counter += 1
+    try:
+        segments = transcription_response.get('segments', [])
+        
+        for segment in segments:
+            words = segment.get('words', [])
+            for word in words:
+                try:
+                    start_time = word.get('start', 0)
+                    end_time = word.get('end', 0)
+                    text = word.get('word', '').strip()
+                    
+                    srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+                    counter += 1
+                except Exception as e:
+                    st.error(f"Error processing word: {word}, Error: {str(e)}")
+                    continue
+    except Exception as e:
+        st.error(f"Error in generate_srt: {str(e)}")
+        return ""
     
     return srt_content
 
@@ -92,31 +109,34 @@ if api_key:
                     transcription = transcribe_audio(api_key, uploaded_file)
                 
                 if transcription:
-                    srt_content = generate_srt(transcription)
-                    
-                    st.success("Transcription complete!")
-                    
-                    st.subheader("Generated SRT Content:")
-                    st.text_area("SRT Content", srt_content, height=300)
-                    
-                    st.download_button(
-                        label="Download SRT File",
-                        data=srt_content,
-                        file_name="transcription.srt",
-                        mime="text/plain"
-                    )
-                    
-                    with st.expander("Debug Information"):
-                        segments = transcription['segments']
-                        for i, segment in enumerate(segments, start=1):
-                            st.text(f"Segment {i}: Start = {segment['start']:.2f}, End = {segment['end']:.2f}, Duration = {segment['end'] - segment['start']:.2f}")
-                            if 'words' in segment:
-                                st.text("Word-level timestamps:")
-                                for word in segment['words']:
-                                    st.text(f"  Word: {word['word'].strip()}, Start = {word['start']:.2f}, End = {word['end']:.2f}")
-                            if i < len(segments):
-                                gap = segments[i]['start'] - segment['end']
-                                st.text(f"Gap to next segment: {gap:.2f}")
-                            st.text(f"Text: {segment['text'].strip()}\n")
+                    try:
+                        srt_content = generate_srt(transcription)
+                        if srt_content:
+                            st.success("Transcription complete!")
+                            
+                            st.subheader("Generated SRT Content:")
+                            st.text_area("SRT Content", srt_content, height=300)
+                            
+                            st.download_button(
+                                label="Download SRT File",
+                                data=srt_content,
+                                file_name="transcription.srt",
+                                mime="text/plain"
+                            )
+                            
+                            with st.expander("Debug Information"):
+                                try:
+                                    segments = transcription.get('segments', [])
+                                    for i, segment in enumerate(segments, start=1):
+                                        st.text(f"Segment {i}: Start = {segment.get('start', 0):.2f}, End = {segment.get('end', 0):.2f}")
+                                        words = segment.get('words', [])
+                                        if words:
+                                            st.text("Word-level timestamps:")
+                                            for word in words:
+                                                st.text(f"  Word: {word.get('word', '').strip()}, Start = {word.get('start', 0):.2f}, End = {word.get('end', 0):.2f}")
+                                except Exception as e:
+                                    st.error(f"Error in debug info: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Error processing transcription: {str(e)}")
 
 st.markdown("---")
