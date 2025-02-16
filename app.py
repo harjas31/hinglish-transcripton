@@ -29,7 +29,7 @@ def transcribe_audio(api_key, audio_file):
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
-                prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Audio ko bahut chhote chhote tukdon mein transcribe karo. Har segment ekdum short hona chahiye, maximum 2-3 words tak. Agar zarurat pade toh sentences ko aur chhote parts mein break kar do.")
+                prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin ye sab Roman script mein likha gaya hai. Audio ko bohut chote chote parts me transcribe karo. Har segment ekdum short hona chahiye, maximum 2-3 words tak. Agar zarurat pade toh sentences ko aur chhote parts mein break kar do.")
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
