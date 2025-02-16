@@ -28,7 +28,7 @@ def transcribe_audio(api_key, audio_file):
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                timestamp_granularities=["word"],  # Using only word-level granularity
+                timestamp_granularities=["word"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
     except Exception as e:
@@ -42,26 +42,22 @@ def transcribe_audio(api_key, audio_file):
 
     return transcription
 
-def generate_srt(transcription):
+def generate_srt(transcription_response):
     srt_content = ""
-    for i, segment in enumerate(transcription.segments, start=1):
-        # Check if word timestamps are available
-        if hasattr(segment, 'words') and segment.words:
-            # Generate separate SRT entries for each word
-            for word_idx, word in enumerate(segment.words):
-                srt_idx = f"{i}.{word_idx + 1}"
-                start_time = word.start
-                end_time = word.end
-                text = word.word.strip()
+    counter = 1
+    
+    # Access segments from the response dictionary
+    segments = transcription_response['segments']
+    
+    for segment in segments:
+        if 'words' in segment:
+            for word in segment['words']:
+                start_time = word['start']
+                end_time = word['end']
+                text = word['word'].strip()
                 
-                srt_content += f"{srt_idx}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
-        else:
-            # Fallback to segment-level timestamps if word-level not available
-            start_time = segment.start
-            end_time = segment.end
-            text = segment.text.strip()
-            
-            srt_content += f"{i}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+                srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+                counter += 1
     
     return srt_content
 
@@ -111,16 +107,18 @@ if api_key:
                         mime="text/plain"
                     )
                     
+                    # Updated debug information to work with dictionary response
                     with st.expander("Debug Information"):
-                        for i, segment in enumerate(transcription.segments, start=1):
-                            st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
-                            if hasattr(segment, 'words'):
+                        segments = transcription['segments']
+                        for i, segment in enumerate(segments, start=1):
+                            st.text(f"Segment {i}: Start = {segment['start']:.2f}, End = {segment['end']:.2f}, Duration = {segment['end'] - segment['start']:.2f}")
+                            if 'words' in segment:
                                 st.text("Word-level timestamps:")
-                                for word in segment.words:
-                                    st.text(f"  Word: {word.word.strip()}, Start = {word.start:.2f}, End = {word.end:.2f}")
-                            if i < len(transcription.segments):
-                                gap = transcription.segments[i].start - segment.end
+                                for word in segment['words']:
+                                    st.text(f"  Word: {word['word'].strip()}, Start = {word['start']:.2f}, End = {word['end']:.2f}")
+                            if i < len(segments):
+                                gap = segments[i]['start'] - segment['end']
                                 st.text(f"Gap to next segment: {gap:.2f}")
-                            st.text(f"Text: {segment.text.strip()}\n")
+                            st.text(f"Text: {segment['text'].strip()}\n")
 
 st.markdown("---")
