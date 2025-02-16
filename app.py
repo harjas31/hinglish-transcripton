@@ -29,17 +29,7 @@ def transcribe_audio(api_key, audio_file):
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
-                prompt="Transcribe this Hindi audio in Roman letters only. Use standard Hinglish style: "
-                    "'Main kya kar raha hoon' NOT 'में क्या कर रहा हूं'. "
-                    "Break into extremely small segments of 1-2 words maximum. "
-                    "Examples of good segments: 'Main kya', 'kar raha', 'hoon'. "
-                    "NEVER use Devanagari script. Always use Roman letters. "
-                    "Use natural Hinglish spellings like people use in WhatsApp: "
-                    "'Kaise ho' NOT 'Kaisa ho', 'Kar raha hoon' NOT 'Kr rha hun'. "
-                    "Important rules: "
-                    "1. ONLY Roman script "
-                    "2. Natural WhatsApp-style Hinglish "
-                    "3. Max 1-2 words per segment")
+                prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Audio ko bahut chhote chhote tukdon mein transcribe karo. Har segment ekdum short hona chahiye, maximum 2-3 words tak. Agar zarurat pade toh sentences ko aur chhote parts mein break kar do.")
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
