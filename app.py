@@ -28,7 +28,7 @@ def transcribe_audio(api_key, audio_file):
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                timestamp_granularities=["word"],
+                timestamp_granularities=["segment"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
     except Exception as e:
