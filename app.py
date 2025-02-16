@@ -3,6 +3,7 @@ import tempfile
 import os
 from openai import OpenAI
 from datetime import timedelta
+import ast
 
 # Constants
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
@@ -14,6 +15,21 @@ def format_time(seconds):
     minutes, seconds = divmod(remainder, 60)
     milliseconds = td.microseconds // 1000
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
+
+def parse_word(word_str):
+    # Extract values from the TranscriptionWord string
+    try:
+        # Convert the string representation to a dictionary-like structure
+        word_str = word_str.replace("TranscriptionWord(", "").replace(")", "")
+        parts = word_str.split(", ")
+        word_data = {}
+        for part in parts:
+            key, value = part.split("=")
+            word_data[key] = float(value) if key in ['start', 'end'] else value.strip("'")
+        return word_data
+    except Exception as e:
+        st.error(f"Error parsing word: {word_str}, Error: {str(e)}")
+        return None
 
 def transcribe_audio(api_key, audio_file):
     client = OpenAI(api_key=api_key)
@@ -31,7 +47,6 @@ def transcribe_audio(api_key, audio_file):
                 timestamp_granularities=["word"],
                 prompt="Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin yeh sab Roman script mein likha gaya hai. Transcribe this audio into very short phrases or fragments. Each segment should be extremely brief, ideally no more than 2-3 words long. Break sentences into smaller parts if necessary.",
             )
-            st.write("Debug - API Response structure:", dict(response))  # Debug print
             return response
     except Exception as e:
         if "Incorrect API key provided" in str(e):
@@ -47,25 +62,21 @@ def generate_srt(response):
         st.error("No transcription response received")
         return ""
     
-    st.write("Debug - Response type:", type(response))  # Debug print
-    
     srt_content = ""
     counter = 1
     
     try:
-        for segment in response.segments:
-            if hasattr(segment, 'words'):
-                for word in segment.words:
-                    try:
-                        start_time = word.start
-                        end_time = word.end
-                        text = word.word.strip()
-                        
-                        srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
-                        counter += 1
-                    except Exception as e:
-                        st.error(f"Error processing word: {word}, Error: {str(e)}")
-                        continue
+        # Process words directly from the words list
+        if hasattr(response, 'words') and response.words:
+            for word_str in response.words:
+                word_data = parse_word(word_str)
+                if word_data:
+                    start_time = word_data['start']
+                    end_time = word_data['end']
+                    text = word_data['word']
+                    
+                    srt_content += f"{counter}\n{format_time(start_time)} --> {format_time(end_time)}\n{text}\n\n"
+                    counter += 1
     except Exception as e:
         st.error(f"Error in generate_srt: {str(e)}")
         return ""
@@ -121,12 +132,13 @@ if api_key:
                             
                             with st.expander("Debug Information"):
                                 try:
-                                    for i, segment in enumerate(transcription.segments, start=1):
-                                        st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}")
-                                        if hasattr(segment, 'words'):
-                                            st.text("Word-level timestamps:")
-                                            for word in segment.words:
-                                                st.text(f"  Word: {word.word.strip()}, Start = {word.start:.2f}, End = {word.end:.2f}")
+                                    st.text("Full text:")
+                                    st.text(transcription.text)
+                                    st.text("\nWord-level information:")
+                                    for word_str in transcription.words:
+                                        word_data = parse_word(word_str)
+                                        if word_data:
+                                            st.text(f"Word: {word_data['word']}, Start: {word_data['start']:.2f}, End: {word_data['end']:.2f}")
                                 except Exception as e:
                                     st.error(f"Error in debug info: {str(e)}")
                     except Exception as e:
