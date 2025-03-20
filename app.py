@@ -31,17 +31,8 @@ def transcribe_audio(api_key, audio_file):
                 "timestamp_granularities": ["segment"],
                 "prompt": "Yeh audio Hinglish mein hai. Hum Hindi bol rahe hain, lekin ye sab Roman script mein likha gaya hai. "
             }
-
-            # Display raw request payload (excluding file for readability)
-            st.subheader("Raw API Request Payload")
-            st.json({k: v for k, v in request_payload.items() if k != "file"})
-
+            
             transcription = client.audio.transcriptions.create(**request_payload)
-
-            # Display raw API response
-            st.subheader("Raw API Response")
-            st.json(transcription.model_dump())
-
     except Exception as e:
         if "Incorrect API key provided" in str(e):
             st.error("Invalid API key. Please check your OpenAI API key and try again.")
@@ -109,16 +100,16 @@ if api_key:
                         mime="text/plain"
                     )
                     
-                    with st.expander("Debug Information"):
-                        st.subheader("Raw API Response Data")
-                        st.json(transcription.model_dump())  # Show full API response
+                # Debug Logs at the bottom
+                st.markdown("---")
+                st.subheader("Debug Information")
+                with st.expander("Raw API Response Data"):
+                    st.json(transcription.model_dump())  # Show full API response
 
-                        st.subheader("Segment Breakdown")
-                        for i, segment in enumerate(transcription.segments, start=1):
-                            st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
-                            if i < len(transcription.segments):
-                                gap = transcription.segments[i].start - segment.end
-                                st.text(f"Gap to next segment: {gap:.2f}")
-                            st.text(f"Text: {segment.text.strip()}\n")
-
-st.markdown("---")
+                with st.expander("Segment Breakdown"):
+                    for i, segment in enumerate(transcription.segments, start=1):
+                        st.text(f"Segment {i}: Start = {segment.start:.2f}, End = {segment.end:.2f}, Duration = {segment.end - segment.start:.2f}")
+                        if i < len(transcription.segments):
+                            gap = transcription.segments[i].start - segment.end
+                            st.text(f"Gap to next segment: {gap:.2f}")
+                        st.text(f"Text: {segment.text.strip()}\n")
