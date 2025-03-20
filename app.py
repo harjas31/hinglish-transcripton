@@ -90,12 +90,12 @@ if api_key:
                     
                     st.success("Transcription complete!")
                     
-                    st.subheader("Generated SRT Content:")
-                    st.text_area("SRT Content", srt_content, height=300)
+                    st.subheader("Edit SRT Content Before Downloading:")
+                    edited_srt_content = st.text_area("SRT Content", srt_content, height=300)
                     
                     st.download_button(
-                        label="Download SRT File",
-                        data=srt_content,
+                        label="Download Edited SRT File",
+                        data=edited_srt_content,
                         file_name="transcription.srt",
                         mime="text/plain"
                     )
