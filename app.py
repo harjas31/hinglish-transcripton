@@ -29,7 +29,7 @@ def transcribe_audio(api_key, audio_file):
                 "file": audio_file,
                 "response_format": "verbose_json",
                 "timestamp_granularities": ["segment"],
-                "prompt": "prompt_text = Audio is in Hinglish (Hindi spoken in Roman script). Transcribe naturally with short segments of 2-3 words max."
+                "prompt": "Audio is in Hinglish (Hindi spoken in Roman script). Transcribe naturally with short segments of 2-3 words max."
             }
 
             # Display raw request payload (excluding file for readability)
